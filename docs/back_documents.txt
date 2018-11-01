@@ -1,0 +1,56 @@
+1.Dao层的设计流程
+    1.1数据库表的设计与javabean的设计
+    ①数据库表的设计：
+        采用两个表，第一以表示商品订单信息，第二个表示用户订单信息
+    ②编写SQL语句创建表，通过编写SQL语句放入文档，相当于日志，可以看到不同版本对数据库的改动
+    ③明确数据库的对应关系，是一对多，还是多对多，这里是一对多，一种商品可以被多个用户购买，但
+    一个用户只能买一个商品，根据一对多关系，创建两个javabean，一个用来存放商品，另一个用来存放用户属性
+    商品的javabean中包含一个用户javabean做为成员变量
+
+    1.2通过Mybatis配置数据库并根据实际需求实现对数据库的相关操作
+    ①根据功能编写dao的接口，采用接口式编程，而不是API编程
+    ②根据接口中要实现的功能，确定要配置哪些Mybatis的Mapper，一般就是一个接口配置一个对应的xml
+    接口中的一个方法对应一个id，因此xml中每个id中的SQL语句就可以看成是接口中方法的具体实现，所以
+    不要好奇为什么只定义了接口，没有定义他的具体实现类，SQL语句不就是其具体实现吗。
+    ③通过properties文件配置数据库账户信息
+    ④配置Mybatis的xml文件
+    ⑤配置Mybatis的configure文件
+    ⑥配置Spring的spring-dao.xml
+
+    1.3各接口对应的功能，查询的结果放入对应的吗JavaBean中
+        SeckillDao(对应SeckillDao javabean)接口功能，对应于关于MySQL数据库中seckill表的操作，包括：
+            查询所有行：queryAll
+            查询某一个行：queryById
+            减库存：reduceNumber
+        SuccessKilledDao(对应SuccessKilled javabean)接口功能，对应于关于MySQL数据库中success_killed表的操作，包括：
+            插入某个用户购买记录：insertSuccessKilled，由于使用了商品名称和用户电话作为主键，
+                当同一个用户秒杀同一个商品时候，会发生主键冲突，可以避免重复秒杀
+            查询购买明细：queryByIdWithSuccessKilled,联合查询success_killed表和seckill表，获得购买的明细
+    1.4 Redis
+        把各个商品的详细信息通过key-value的形式存入Redis，承受在暴露秒杀接口时的高并发
+
+2.DTO
+    DTO层的接口设计，之所以要设计一个DTO层的接口，是因为秒杀的地址是不能随便暴露的，不然那直接输入地址就好了
+    2.1 DTO的功能
+        Exposer:记录了暴露地址，以及秒杀地址的当前状态
+            采用不同的构造函数表示不同的暴露状态
+        SeckillExcution:记录秒杀结果
+            采用不同的构造函数建立不同的秒杀结果对象
+        SeckillResult:使用泛型的方式封装Exposer对象和SeckillExcution对象
+    DTO与DAO是平级的关系，都用来为Service层服务
+
+3.Service层
+    dao与dto用来与数据库交互，或者为service层提供支持，而service层则顾名思义就是
+    为了给web层提供服务的，看service层基本上就可以明白这个app到底再干一些什么，其
+    大致的思路是什么
+    3.1service层接口的功能
+       SeckillServiceImpl:
+          拿到列表页的数据
+          拿到详情页的数据
+          拿到存储秒杀地址的对象
+          执行秒杀：普通方式秒杀和使用存储过程秒杀
+
+4.web层
+    web层将URL映射到具体的函数取执行，函数返回的结果可是jsp，文本文件、也可是java对象
+    进一步把service层得到的数据封装起来，送给model
+
